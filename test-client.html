@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Socket Tester</title>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+</head>
+<body style="font-family: monospace; background: #111; color: #0f0; padding: 20px;">
+    
+    <h2>Live Casino Feed</h2>
+    <div id="status">Connecting...</div>
+    <div id="timer" style="font-size: 24px; margin: 10px 0;">Time: --</div>
+    <div id="result" style="color: gold; font-size: 20px;"></div>
+
+    <script>
+        // Connect to your local backend
+        const socket = io('http://localhost:5000');
+
+        socket.on('connect', () => {
+            document.getElementById('status').innerText = '🟢 Connected to Server!';
+        });
+
+        // Listen for the ticking clock
+        socket.on('timerTick', (data) => {
+            document.getElementById('timer').innerText = `Phase: ${data.status} | Time Left: ${data.timeLeft}s`;
+            document.getElementById('result').innerText = ''; // Clear old results
+        });
+
+        // Listen for the big game state changes (Rolling, Resolved)
+        socket.on('gameStatus', (data) => {
+            document.getElementById('timer').innerText = `Phase: ${data.status} | Time Left: ${data.timeLeft}s`;
+            
+            if (data.status === 'ROLLING' && data.result) {
+                document.getElementById('result').innerText = 
+                    `🎲 Rolled: ${data.result.dice1} + ${data.result.dice2} = ${data.result.total}`;
+            }
+        });
+    </script>
+</body>
+</html>

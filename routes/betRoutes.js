@@ -1,0 +1,67 @@
+// backend/routes/betRoutes.js
+const express = require('express');
+const router = express.Router();
+
+const User = require('../models/User');
+const Bet = require('../models/Bet');
+const Round = require('../models/Round');
+const Transaction = require('../models/Transaction');
+const { protect } = require('../middleware/authMiddleware');
+router.post('/bet', protect, async (req, res) => {
+  try {
+    const { betTarget, amount } = req.body;
+    const userId = req.user._id; 
+    const { gameState, currentRoundId } = req;
+
+    // 1. Check if the game is currently accepting bets
+    if (gameState !== 'BETTING') {
+      return res.status(400).json({ error: 'Bets are closed for this round!' });
+    }
+
+    // 2. Find the user and check their balance
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (user.walletBalance < amount) {
+      return res.status(400).json({ error: 'Insufficient funds' });
+    }
+
+    // 3. Deduct the money from the user's wallet
+    user.walletBalance -= amount;
+    user.totalWagered += amount;
+    await user.save();
+
+    // 4. Create the official Bet record
+    const newBet = new Bet({
+      userId: user._id,
+      roundId: currentRoundId, 
+      betTarget,
+      amount
+    });
+    await newBet.save();
+
+    // 5. Create the Ledger Receipt
+    const newTransaction = new Transaction({
+      userId: user._id,
+      type: 'BET_PLACED',
+      amount: -amount,
+      balanceAfter: user.walletBalance,
+      description: `Placed bet of ${amount} on ${betTarget}`
+    });
+    await newTransaction.save();
+
+    // 6. Success! 
+    res.json({ 
+      message: 'Bet placed successfully', 
+      newBalance: user.walletBalance,
+      bet: newBet
+    });
+
+  } catch (error) {
+    console.error('Betting Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+module.exports = router;
