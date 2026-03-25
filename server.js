@@ -18,7 +18,7 @@ const Transaction = require('./models/Transaction');
 
 // Middleware
 app.use(cors({
-    origin: ["http://localhost:5173", "https://your-new-vercel-link.vercel.app"]
+    origin: ["http://localhost:5173", "casino-frontend-lyart.vercel.app"]
 }));
 app.use(express.json()); // Parses incoming JSON requests
 app.use((req, res, next) => {
@@ -34,7 +34,7 @@ app.use('/api', betRoutes); // This prefixes all routes in that file with /api
 // Setup Socket.io for real-time game state
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://your-new-vercel-link.vercel.app"],
+    origin: ["http://localhost:5173", "casino-frontend-lyart.vercel.app"],
     methods: ["GET", "POST"]
   }
 });
