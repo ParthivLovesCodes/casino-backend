@@ -506,3 +506,25 @@ app.get('/api/admin/ledger', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch master ledger.' });
   }
 });
+// 🚨 TEMPORARY SETUP ROUTE: Delete this after you log in! 🚨
+app.get('/api/setup-admin', async (req, res) => {
+  try {
+    const adminExists = await User.findOne({ username: 'CasinoBoss' });
+    if (adminExists) {
+      return res.send('Boss already exists! Go log in.');
+    }
+
+    // This creates the user and runs it through your normal security/encryption
+    const newAdmin = new User({
+      username: 'CasinoBoss',
+      password: 'BossPassword99', 
+      role: 'admin',
+      walletBalance: 5000000
+    });
+    
+    await newAdmin.save();
+    res.send('✅ SUCCESS! Master account created. Username: CasinoBoss | Password: BossPassword99');
+  } catch (error) {
+    res.send(`❌ Error: ${error.message}`);
+  }
+});
