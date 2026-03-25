@@ -40,8 +40,8 @@ const io = new Server(server, {
 });
 
 // MongoDB Connection
-// We'll use a local database for now, you can swap this for MongoDB Atlas later
-mongoose.connect('mongodb://127.0.0.1:27017/lucky7_game')
+// MongoDB Connection
+mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/lucky7_game')
   .then(() => console.log('✅ MongoDB Connected Successfully'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
