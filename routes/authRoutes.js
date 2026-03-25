@@ -13,7 +13,7 @@ const generateToken = (id) => {
 
 // --- 1. SETUP MASTER ADMIN (Run this ONCE to create your first admin) ---
 // POST /api/auth/setup-admin
-router.post('/setup-admin', async (req, res) => {
+router.get('/setup-admin', async (req, res) => {
   const adminExists = await User.findOne({ role: 'admin' });
   if (adminExists) return res.status(400).json({ error: 'An admin already exists!' });
   
