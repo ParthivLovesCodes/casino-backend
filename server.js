@@ -16,6 +16,7 @@ const User = require('./models/User');
 const BankingRequest = require('./models/BankingRequest');
 const Transaction = require('./models/Transaction');
 
+
 // Middleware
 app.use(cors({
     origin: ["http://localhost:5173", "https://casino-frontend-lyart.vercel.app"],
@@ -61,7 +62,7 @@ let currentRollResult = null; // We need this to remember the roll for the payou
 
 // --- ADMIN SETTING ---
 let gameMode = 'FAIR'; // Change this to 'RIGGED' to activate the smart algorithm
-
+let rollHistory = [];
 // Helper for Fair Mode
 const generateFairRoll = () => {
   const dice1 = Math.floor(Math.random() * 6) + 1;
@@ -90,7 +91,8 @@ const startGameLoop = () => {
                 currentRollResult = generateFairRoll();
                 console.log('🎲 Fair, completely random roll');
             }
-             
+             rollHistory.unshift(currentRollResult);
+            if (rollHistory.length > 15) rollHistory.pop();
              // Emit the result so the frontend dice can land!
              io.emit('gameStatus', { status: gameState, timeLeft, result: currentRollResult });
              console.log(`Roll Result: ${currentRollResult.dice1} + ${currentRollResult.dice2} = ${currentRollResult.total}`);
@@ -142,7 +144,7 @@ startGameLoop();
 io.on('connection', (socket) => {
   console.log(`🟢 A player connected: ${socket.id}`);
 
-  // TODO: Add events to listen for bets and broadcast timers
+  socket.emit('initHistory', rollHistory);
 
   socket.on('disconnect', () => {
     console.log(`🔴 Player disconnected: ${socket.id}`);
