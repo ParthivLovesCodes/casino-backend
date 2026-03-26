@@ -152,7 +152,7 @@ router.delete('/bet/clear', protect, async (req, res) => {
     // 6. Log the refund in the main transaction ledger
     const newTransaction = new Transaction({
       userId: user._id,
-      type: 'REFUND',
+      type: 'DEPOSIT',
       amount: totalRefund,
       balanceAfter: user.walletBalance,
       description: `Cleared bets for current round`
