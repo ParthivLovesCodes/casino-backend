@@ -65,6 +65,10 @@ const generateDiceFaces = (targetTotal) => {
       }
     }
   }
+  console.log("\n💰 --- HOUSE LIABILITY REPORT --- 💰");
+  console.table(houseLiability);
+  console.log(`🎯 The House chose total: ${targetTotal} to minimize payouts.`);
+  console.log("-----------------------------------\n");
   // Return a random valid pair
   return possiblePairs[Math.floor(Math.random() * possiblePairs.length)];
 };
