@@ -63,5 +63,61 @@ router.post('/bet', protect, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.post('/bet/bulk', protect, async (req, res) => {
+  try {
+    const { bets } = req.body;
+    const userId = req.user._id; 
+    const { gameState, currentRoundId } = req;
 
+    // 1. Check timer
+    if (gameState !== 'BETTING') {
+      return res.status(400).json({ error: 'Bets are closed for this round!' });
+    }
+
+    // 2. Calculate the total cost of all chips
+    const totalCost = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
+
+    // 3. Find the user and verify funds
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (user.walletBalance < totalCost) {
+      return res.status(400).json({ error: 'Insufficient funds for bulk bet' });
+    }
+
+    // 4. Deduct the massive lump sum ONCE safely
+    user.walletBalance -= totalCost;
+    user.totalWagered += totalCost;
+    await user.save();
+
+    // 5. Create the individual Bet tickets for the rigging engine to read
+    const betTickets = Object.entries(bets).map(([target, amount]) => ({
+      userId: user._id,
+      roundId: currentRoundId,
+      betTarget: target,
+      amount: amount
+    }));
+    await Bet.insertMany(betTickets);
+
+    // 6. Create ONE single ledger receipt for the whole batch
+    const newTransaction = new Transaction({
+      userId: user._id,
+      type: 'BET_PLACED',
+      amount: -totalCost,
+      balanceAfter: user.walletBalance,
+      description: `Placed bulk bets totaling ${totalCost}`
+    });
+    await newTransaction.save();
+
+    res.json({ 
+      message: 'Bulk bets placed successfully', 
+      newBalance: user.walletBalance 
+    });
+
+  } catch (error) {
+    console.error('Bulk Betting Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;
