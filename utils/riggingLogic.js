@@ -51,6 +51,12 @@ const calculateBestOutcome = async (roundId) => {
   // 5. Pick one of the best totals randomly (to keep it unpredictable if there are ties)
   const targetTotal = bestTotals[Math.floor(Math.random() * bestTotals.length)];
 
+  // 👉 THE FIX: THE LOGS ARE MOVED HERE! (Where houseLiability actually exists)
+  console.log("\n💰 --- HOUSE LIABILITY REPORT --- 💰");
+  console.table(houseLiability);
+  console.log(`🎯 The House chose total: ${targetTotal} to minimize payouts.`);
+  console.log("-----------------------------------\n");
+
   // 6. Generate the exact dice faces to equal that target total
   return generateDiceFaces(targetTotal);
 };
@@ -65,10 +71,6 @@ const generateDiceFaces = (targetTotal) => {
       }
     }
   }
-  console.log("\n💰 --- HOUSE LIABILITY REPORT --- 💰");
-  console.table(houseLiability);
-  console.log(`🎯 The House chose total: ${targetTotal} to minimize payouts.`);
-  console.log("-----------------------------------\n");
   // Return a random valid pair
   return possiblePairs[Math.floor(Math.random() * possiblePairs.length)];
 };
