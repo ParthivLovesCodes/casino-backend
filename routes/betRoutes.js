@@ -120,4 +120,53 @@ router.post('/bet/bulk', protect, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+router.delete('/bet/clear', protect, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { gameState, currentRoundId } = req;
+
+    // 1. Safety Check: Can only clear while the timer is still ticking!
+    if (gameState !== 'BETTING') {
+      return res.status(400).json({ error: 'Too late! Bets are locked for this round.' });
+    }
+
+    // 2. Find all bets placed by this user in the CURRENT round
+    const activeBets = await Bet.find({ userId, roundId: currentRoundId });
+
+    if (activeBets.length === 0) {
+      return res.status(400).json({ error: 'No active bets to clear.' });
+    }
+
+    // 3. Calculate the exact total refund amount
+    const totalRefund = activeBets.reduce((sum, bet) => sum + bet.amount, 0);
+
+    // 4. Destroy the bet tickets in the database
+    await Bet.deleteMany({ userId, roundId: currentRoundId });
+
+    // 5. Refund the user's wallet safely
+    const user = await User.findById(userId);
+    user.walletBalance += totalRefund;
+    user.totalWagered -= totalRefund; // Revert their wagered stats
+    await user.save();
+
+    // 6. Log the refund in the main transaction ledger
+    const newTransaction = new Transaction({
+      userId: user._id,
+      type: 'REFUND',
+      amount: totalRefund,
+      balanceAfter: user.walletBalance,
+      description: `Cleared bets for current round`
+    });
+    await newTransaction.save();
+
+    res.json({
+      message: 'Bets cleared and fully refunded!',
+      newBalance: user.walletBalance
+    });
+
+  } catch (error) {
+    console.error('Clear Bets Error:', error);
+    res.status(500).json({ error: 'Failed to clear bets.' });
+  }
+});
 module.exports = router;
