@@ -7,41 +7,52 @@ const Bet = require('../models/Bet');
 const Round = require('../models/Round');
 const Transaction = require('../models/Transaction');
 const { protect } = require('../middleware/authMiddleware');
+// --- 1. SINGLE CHIP BETTING ROUTE (With Smart Stacking) ---
 router.post('/bet', protect, async (req, res) => {
   try {
     const { betTarget, amount } = req.body;
     const userId = req.user._id; 
     const { gameState, currentRoundId } = req;
 
-    // 1. Check if the game is currently accepting bets
     if (gameState !== 'BETTING') {
       return res.status(400).json({ error: 'Bets are closed for this round!' });
     }
 
-    // 2. Find the user and check their balance
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
     if (user.walletBalance < amount) {
       return res.status(400).json({ error: 'Insufficient funds' });
     }
 
-    // 3. Deduct the money from the user's wallet
+    // Deduct funds
     user.walletBalance -= amount;
     user.totalWagered += amount;
     await user.save();
 
-    // 4. Create the official Bet record
-    const newBet = new Bet({
+    // 👉 THE FIX: Smart Ticket Stacking (Upsert)
+    let existingBet = await Bet.findOne({
       userId: user._id,
-      roundId: currentRoundId, 
-      betTarget,
-      amount
+      roundId: currentRoundId,
+      betTarget: betTarget
     });
-    await newBet.save();
 
-    // 5. Create the Ledger Receipt
+    if (existingBet) {
+      // If they already bet on this target this round, just add to the pile!
+      existingBet.amount += amount;
+      await existingBet.save();
+    } else {
+      // If this is their first time betting on this target this round, make a new ticket.
+      const newBet = new Bet({
+        userId: user._id,
+        roundId: currentRoundId,
+        betTarget,
+        amount
+      });
+      await newBet.save();
+    }
+
+    // Create the Ledger Receipt for the transaction history
     const newTransaction = new Transaction({
       userId: user._id,
       type: 'BET_PLACED',
@@ -51,11 +62,9 @@ router.post('/bet', protect, async (req, res) => {
     });
     await newTransaction.save();
 
-    // 6. Success! 
     res.json({ 
-      message: 'Bet placed successfully', 
-      newBalance: user.walletBalance,
-      bet: newBet
+      message: 'Bet placed and stacked successfully', 
+      newBalance: user.walletBalance
     });
 
   } catch (error) {
@@ -63,44 +72,44 @@ router.post('/bet', protect, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// --- 2. BULK BETTING ROUTE (With BulkWrite Stacking) ---
 router.post('/bet/bulk', protect, async (req, res) => {
   try {
     const { bets } = req.body;
     const userId = req.user._id; 
     const { gameState, currentRoundId } = req;
 
-    // 1. Check timer
     if (gameState !== 'BETTING') {
       return res.status(400).json({ error: 'Bets are closed for this round!' });
     }
 
-    // 2. Calculate the total cost of all chips
     const totalCost = Object.values(bets).reduce((sum, amount) => sum + amount, 0);
 
-    // 3. Find the user and verify funds
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
     if (user.walletBalance < totalCost) {
       return res.status(400).json({ error: 'Insufficient funds for bulk bet' });
     }
 
-    // 4. Deduct the massive lump sum ONCE safely
+    // Deduct lump sum
     user.walletBalance -= totalCost;
     user.totalWagered += totalCost;
     await user.save();
 
-    // 5. Create the individual Bet tickets for the rigging engine to read
-    const betTickets = Object.entries(bets).map(([target, amount]) => ({
-      userId: user._id,
-      roundId: currentRoundId,
-      betTarget: target,
-      amount: amount
+    // 👉 THE FIX: MongoDB BulkWrite (Incredibly fast, stacks all bets simultaneously)
+    const bulkOps = Object.entries(bets).map(([target, amount]) => ({
+      updateOne: {
+        filter: { userId: user._id, roundId: currentRoundId, betTarget: target },
+        update: { $inc: { amount: amount } }, // $inc adds the new amount to the existing total
+        upsert: true // If it doesn't exist, create it!
+      }
     }));
-    await Bet.insertMany(betTickets);
+    
+    // Execute all updates/inserts in one swift database command
+    await Bet.bulkWrite(bulkOps);
 
-    // 6. Create ONE single ledger receipt for the whole batch
     const newTransaction = new Transaction({
       userId: user._id,
       type: 'BET_PLACED',
@@ -111,7 +120,7 @@ router.post('/bet/bulk', protect, async (req, res) => {
     await newTransaction.save();
 
     res.json({ 
-      message: 'Bulk bets placed successfully', 
+      message: 'Bulk bets stacked successfully', 
       newBalance: user.walletBalance 
     });
 
