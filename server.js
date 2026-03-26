@@ -192,6 +192,10 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+app.get('/api/admin/engine-mode', verifyToken, (req, res) => {
+  res.json({ mode: currentEngineMode });
+});
+
 app.post('/api/admin/engine-mode', verifyToken, async (req, res) => {
     const { mode } = req.body;
     
