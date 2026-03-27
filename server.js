@@ -19,7 +19,8 @@ const Transaction = require('./models/Transaction');
 
 // Middleware
 app.use(cors({
-    origin: ["http://localhost:5173", "https://casino-frontend-lyart.vercel.app"],
+    origin: ["http://localhost:5173", "https://casino-frontend-lyart.vercel.app","https://luckyupdown.live",
+        "https://www.luckyupdown.live"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
@@ -37,7 +38,8 @@ app.use('/api', betRoutes); // This prefixes all routes in that file with /api
 // Setup Socket.io for real-time game state
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "https://casino-frontend-lyart.vercel.app"],
+    origin: ["http://localhost:5173", "https://casino-frontend-lyart.vercel.app","https://luckyupdown.live",
+        "https://www.luckyupdown.live"],
     methods: ["GET", "POST"],
     credentials: true
   }

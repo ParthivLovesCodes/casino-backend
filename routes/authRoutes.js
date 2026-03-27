@@ -59,7 +59,6 @@ router.post('/login', async (req, res) => {
 router.post('/create-player', protect, adminOnly, async (req, res) => {
   try {
     const { username, password,walletBalance } = req.body;
-
     const userExists = await User.findOne({ username });
     if (userExists) return res.status(400).json({ error: 'Username is already taken' });
 
