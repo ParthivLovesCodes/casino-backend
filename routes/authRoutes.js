@@ -58,7 +58,7 @@ router.post('/login', async (req, res) => {
 // POST /api/auth/create-player
 router.post('/create-player', protect, adminOnly, async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password,walletBalance } = req.body;
 
     const userExists = await User.findOne({ username });
     if (userExists) return res.status(400).json({ error: 'Username is already taken' });
@@ -70,6 +70,7 @@ router.post('/create-player', protect, adminOnly, async (req, res) => {
       username,
       password: hashedPassword,
       role: 'player',
+      walletBalance: walletBalance || 1000,
       createdBy: req.user._id // Records WHICH admin made this account
     });
 
